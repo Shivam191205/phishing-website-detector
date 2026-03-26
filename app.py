@@ -2,7 +2,7 @@ import streamlit as st
 import pickle
 from urllib.parse import urlparse
 import requests
-import whois
+
 
 from URLFeatureExtraction import *
 
