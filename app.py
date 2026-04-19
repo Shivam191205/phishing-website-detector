@@ -124,26 +124,7 @@ st.sidebar.write("🔒 Cybersecurity Project")
 model = pickle.load(open("XGBoostClassifier.pickle.dat", "rb"))
 
 # ---------------- RULE SYSTEM ----------------
-def rule_based_check(url):
-    domain = urlparse(url).netloc.lower()
-
-    if "@" in url:
-        return 1
-    if "-" in domain:
-        return 1
-    if "login" in url or "verify" in url or "secure" in url:
-        return 1
-
-    trusted_domains = [
-        "google.com", "github.com", "wikipedia.org",
-        "microsoft.com", "amazon.in", "amazon.com", "stackoverflow.com"
-    ]
-
-    for site in trusted_domains:
-        if domain.endswith(site):
-            return 0
-
-    return None
+from utils import normalize_url, rule_based_check
 
 
 # ---------------- FEATURE FIX ----------------
@@ -240,7 +221,7 @@ url = st.text_input("🔗 Enter Website URL")
 if st.button("🚀 Analyze Website"):
     if url:
         with st.spinner("Analyzing website..."):
-
+            url = normalize_url(url)
             rule_result = rule_based_check(url)
 
             if rule_result is not None:

@@ -56,7 +56,7 @@ If the length of URL >= 54 , the value assigned to this feature is 1 (phishing) 
 
 # 4.Finding the length of URL and categorizing (URL_Length)
 def getLength(url):
-  if len(url) < 54:
+  if len(url) < 75:
     length = 0            
   else:
     length = 1            
@@ -130,7 +130,11 @@ shortening_services = r"bit\.ly|goo\.gl|shorte\.st|go2l\.ink|x\.co|ow\.ly|t\.co|
 
 # 8. Checking for Shortening Services in URL (Tiny_URL)
 def tinyURL(url):
-    return 0
+    match = re.search(shortening_services, url)
+    if match:
+        return 1
+    else:
+        return 0
 
 """#### **3.1.9. Prefix or Suffix "-" in Domain**
 
@@ -187,13 +191,16 @@ If the rank of the domain < 100000, the vlaue of this feature is 1 (phishing) el
 # 12.Web traffic (Web_Traffic)
 def web_traffic(url):
     try:
-        response = requests.get(url, timeout=5)
+        # We check if the site is reachable. If it is, and it's a 200, we consider it okay.
+        # If it's down, we don't necessarily want to flag it as phishing immediately 
+        # unless there are other strong indicators.
+        response = requests.get(url, timeout=5, allow_redirects=True)
         if response.status_code == 200:
             return 0   # Legitimate
         else:
-            return 1   # Suspicious
+            return 1   # Suspicious (e.g. 404, 500 on a supposed landing page)
     except:
-        return 1       # Phishing (if unreachable)
+        return 0       # Not enough info to flag as phishing just because it's down
 
 """#### **3.2.3. Age of Domain**
 
@@ -279,10 +286,10 @@ def iframe(response):
   if response == "":
       return 1
   else:
-      if re.findall(r"[<iframe>|<frameBorder>]", response.text):
-          return 0
-      else:
+      if re.findall(r"<iframe|<frameBorder", response.text, re.IGNORECASE):
           return 1
+      else:
+          return 0
 
 """### **3.3.2. Status Bar Customization**
 
@@ -296,7 +303,7 @@ def mouseOver(response):
   if response == "" :
     return 1
   else:
-    if re.findall("<script>.+onmouseover.+</script>", response.text):
+    if re.findall("<script>.+onmouseover.+</script>", response.text, re.IGNORECASE):
       return 1
     else:
       return 0
