@@ -1,4 +1,6 @@
 
+import tldextract
+import re
 from urllib.parse import urlparse
 
 def normalize_url(url):
@@ -7,23 +9,125 @@ def normalize_url(url):
         url = "https://" + url
     return url
 
+# ---------------- HEURISTIC ENGINE ----------------
+class HeuristicEngine:
+    def __init__(self):
+        # Major brands frequently targeted by phishing
+        self.trusted_brands = {
+            "google": ["google.com", "google.co.in", "google.co.uk", "gmail.com"],
+            "microsoft": ["microsoft.com", "outlook.com", "live.com", "office.com"],
+            "facebook": ["facebook.com", "fb.com"],
+            "apple": ["apple.com", "icloud.com"],
+            "amazon": ["amazon.com", "amazon.in", "amazon.co.uk"],
+            "netflix": ["netflix.com"],
+            "paypal": ["paypal.com"],
+            "github": ["github.com"],
+            "linkedin": ["linkedin.com"],
+            "twitter": ["twitter.com", "x.com"],
+            "instagram": ["instagram.com"],
+            "whatsapp": ["whatsapp.com"],
+            "chase": ["chase.com"],
+            "wellsfargo": ["wellsfargo.com"],
+            "bankofamerica": ["bankofamerica.com"],
+            "adobe": ["adobe.com"],
+            "dropbox": ["dropbox.com"],
+            "zoom": ["zoom.us"],
+            "steam": ["steampowered.com"],
+            "rakuten": ["rakuten.co.jp"],
+            "alibaba": ["alibaba.com"],
+            "ebay": ["ebay.com"]
+        }
+        
+        # Keywords often used in phishing URLs
+        self.suspicious_keywords = [
+            "login", "verify", "secure", "account", "update", "banking", 
+            "wallet", "crypto", "official", "support", "billing", "signin",
+            "validation", "compliance", "confirm"
+        ],
+        
+        # TLDs often used for phishing or low-reputation sites
+        self.suspicious_tlds = [
+            "xyz", "top", "win", "club", "loan", "biz", "info", "online", 
+            "site", "website", "pw", "cc", "run", "icu"
+        ]
+
+    def analyze(self, url):
+        ext = tldextract.extract(url)
+        subdomain = ext.subdomain.lower()
+        domain = ext.domain.lower()
+        suffix = ext.suffix.lower()
+        full_domain = f"{domain}.{suffix}"
+        
+        flags = []
+        score = 0
+        
+        # 1. Brand Impersonation Check
+        for brand, domains in self.trusted_brands.items():
+            # If brand name is in domain or subdomain but it's not the official domain
+            if (brand in domain or brand in subdomain) and full_domain not in domains:
+                # Special case: allow subdomains of official domains (e.g., accounts.google.com)
+                is_sub_of_official = False
+                for official in domains:
+                    if full_domain == official:
+                        is_sub_of_official = True
+                        break
+                
+                if not is_sub_of_official:
+                    flags.append(f"Brand Impersonation ({brand.capitalize()})")
+                    score += 50
+
+        # 2. Subdomain Stuffing
+        dots = subdomain.count('.')
+        if dots >= 3:
+            flags.append(f"Subdomain Stuffing ({dots} subdomains)")
+            score += 30
+        
+        # 3. Suspicious TLD
+        if suffix in self.suspicious_tlds:
+            flags.append(f"Suspicious TLD (.{suffix})")
+            score += 20
+            
+        # 4. Keyword Risk in Subdomain/Domain
+        for kw in self.suspicious_keywords[0]: # Suspicious keywords was a tuple accidentally
+            if kw in subdomain or kw in domain:
+                flags.append(f"Risk Keyword: '{kw}'")
+                score += 25
+
+        # 5. Excessive Dashes
+        dashes = domain.count('-') + subdomain.count('-')
+        if dashes >= 3:
+            flags.append(f"Excessive Dashes ({dashes})")
+            score += 15
+
+        return {
+            "score": score,
+            "flags": flags,
+            "domain_info": {
+                "subdomain": subdomain,
+                "domain": domain,
+                "suffix": suffix,
+                "full": full_domain
+            }
+        }
+
+# ---------------- RULE SYSTEM (UPGRADED) ----------------
+engine = HeuristicEngine()
+
 def rule_based_check(url):
-    domain = urlparse(url).netloc.lower()
-
-    # Common phishing tricks
-    if "@" in url:
-        return 1
+    norm_url = normalize_url(url)
+    h_result = engine.analyze(norm_url)
     
-    # Trusted domains
-    trusted_domains = [
-        "google.com", "github.com", "wikipedia.org", "microsoft.com", 
-        "amazon.in", "amazon.com", "stackoverflow.com", "apple.com",
-        "netflix.com", "twitter.com", "linkedin.com", "facebook.com",
-        "unb.ca", "phishtank.com", "google.co.in"
-    ]
+    # 1. Whitelist (Known Safe)
+    # If the score is 0 and it's a very common domain, trust it
+    if h_result["score"] == 0:
+        # Check if it's an official brand domain
+        for brand, domains in engine.trusted_brands.items():
+            if h_result["domain_info"]["full"] in domains:
+                return 0, h_result
 
-    for site in trusted_domains:
-        if domain == site or domain.endswith("." + site):
-            return 0
-
-    return None
+    # 2. High Confidence Malicious (Heuristic)
+    if h_result["score"] >= 80:
+        return 1, h_result
+    
+    # Otherwise, return None to pass to the model
+    return None, h_result

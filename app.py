@@ -222,7 +222,7 @@ if st.button("🚀 Analyze Website"):
     if url:
         with st.spinner("Analyzing website..."):
             url = normalize_url(url)
-            rule_result = rule_based_check(url)
+            rule_result, h_result = rule_based_check(url)
 
             if rule_result is not None:
                 result = rule_result
@@ -251,6 +251,13 @@ if st.button("🚀 Analyze Website"):
             </div>
             """, unsafe_allow_html=True)
             risk = 90
+
+        # ---------------- HEURISTIC ANALYSIS ----------------
+        if h_result["flags"]:
+            st.subheader("🛡️ Heuristic Analysis")
+            st.write(f"**Risk Score:** {h_result['score']}/100")
+            for flag in h_result["flags"]:
+                st.warning(f"🚩 {flag}")
 
         # ---------------- RISK METER ----------------
         st.markdown("### 📊 Risk Meter")
