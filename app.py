@@ -294,7 +294,7 @@ if st.button("🚀 Analyze Website"):
             <p>This website is safe and trusted.</p>
             </div>
             """, unsafe_allow_html=True)
-            risk = 10 if h_result["score"] == 0 else 25
+            risk = 0.10 if h_result["score"] == 0 else 0.25
         elif status == "caution":
             st.markdown("""
             <div style='padding: 25px; border-radius: 15px; background: rgba(255,165,0,0.1); box-shadow: 0 0 30px rgba(255,165,0,0.4);'>
@@ -302,7 +302,7 @@ if st.button("🚀 Analyze Website"):
             <p>This website has some suspicious patterns but is not definitively phishing. Proceed with care.</p>
             </div>
             """, unsafe_allow_html=True)
-            risk = 55
+            risk = 0.55
         else:
             st.markdown("""
             <div class='error-box'>
@@ -310,7 +310,9 @@ if st.button("🚀 Analyze Website"):
             <p>This website may steal sensitive data. High confidence malicious indicators found.</p>
             </div>
             """, unsafe_allow_html=True)
-            risk = 90
+            # Risk score for phishing: base 85, boosted by heuristic score
+            heuristic_boost = min(h_result["score"], 100) / 1000  # up to +0.10
+            risk = min(0.85 + heuristic_boost, 0.99)
 
         # ---------------- HEURISTIC ANALYSIS ----------------
         if h_result["flags"]:
@@ -323,13 +325,13 @@ if st.button("🚀 Analyze Website"):
         st.markdown("### 📊 Risk Meter")
 
         st.progress(risk)
-
-        if risk > 70:
-            st.markdown("<h3 style='color:red;'>🔴 HIGH RISK</h3>", unsafe_allow_html=True)
-        elif risk > 40:
-            st.markdown("<h3 style='color:orange;'>🟠 MEDIUM RISK</h3>", unsafe_allow_html=True)
+        risk_pct = int(risk * 100)
+        if risk > 0.70:
+            st.markdown(f"<h3 style='color:red;'>🔴 HIGH RISK — {risk_pct}%</h3>", unsafe_allow_html=True)
+        elif risk > 0.40:
+            st.markdown(f"<h3 style='color:orange;'>🟠 MEDIUM RISK — {risk_pct}%</h3>", unsafe_allow_html=True)
         else:
-            st.markdown("<h3 style='color:lightgreen;'>🟢 LOW RISK</h3>", unsafe_allow_html=True)
+            st.markdown(f"<h3 style='color:lightgreen;'>🟢 LOW RISK — {risk_pct}%</h3>", unsafe_allow_html=True)
 
         # ---------------- CONFIDENCE ----------------
         if rule_result is not None:
