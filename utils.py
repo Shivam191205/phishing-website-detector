@@ -7,6 +7,21 @@ def normalize_url(url):
     url = url.strip()
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
+    
+    # Prepend www. if it's a naked domain
+    try:
+        ext = tldextract.extract(url)
+        if not ext.subdomain and ext.domain and ext.suffix:
+            # We use tldextract info to safely prepend www.
+            # Example: google.com -> www.google.com
+            parsed = urlparse(url)
+            # Reconstruct the URL with www.
+            netloc = f"www.{ext.domain}.{ext.suffix}"
+            url = f"{parsed.scheme}://{netloc}{parsed.path}"
+            if parsed.query: url += f"?{parsed.query}"
+    except:
+        pass # If anything goes wrong, keep the original normalized URL
+        
     return url
 
 # ---------------- HEURISTIC ENGINE ----------------

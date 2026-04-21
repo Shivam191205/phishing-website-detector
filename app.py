@@ -134,7 +134,7 @@ def fix_features(features):
 
 
 # ---------------- FEATURE EXTRACTION ----------------
-def get_features(url):
+def get_features(url, dns_val=None, whois_obj=None):
     features = []
 
     features.append(havingIP(url))
@@ -147,11 +147,15 @@ def get_features(url):
     features.append(prefixSuffix(url))
 
     # DNS & Domain features
-    dns = 0
-    try:
-        domain_name = whois.whois(urlparse(url).netloc)
-    except:
-        dns = 1
+    if dns_val is not None and whois_obj is not None:
+        dns = dns_val
+        domain_name = whois_obj
+    else:
+        dns = 0
+        try:
+            domain_name = whois.whois(urlparse(url).netloc)
+        except:
+            dns = 1
     
     features.append(dns)
     features.append(web_traffic(url))
@@ -228,17 +232,37 @@ url = st.text_input("🔗 Enter Website URL")
 # ---------------- MAIN LOGIC ----------------
 if st.button("🚀 Analyze Website"):
     if url:
-        with st.spinner("Analyzing website..."):
-            url = normalize_url(url)
-            rule_result, h_result = rule_based_check(url)
+        # Pre-normalization (Add www. and https://)
+        url = normalize_url(url)
+        
+        with st.spinner("🔍 Validating DNS and fetching website information..."):
+            # 1. DNS VALIDATION (Graceful Error)
+            try:
+                netloc = urlparse(url).netloc
+                domain_name = whois.whois(netloc)
+                
+                # If whois returns essentially nothing, it's a DNS failure
+                if not domain_name or (not getattr(domain_name, 'creation_date', None) and not getattr(domain_name, 'domain_name', None)):
+                    st.error("🚫 DNS record doesn't exist. Please check your domain name and try again.")
+                    st.stop()
+                
+                dns = 0
+            except Exception:
+                st.error("🚫 DNS record doesn't exist or could not be reached. Check your input.")
+                st.stop()
 
-            if rule_result is not None:
-                result = rule_result
-            else:
-                features = get_features(url)
+        with st.spinner("🛡️ Running security analysis..."):
+            # 2. Check Heuristics
+            rule_result, h_result = rule_based_check(url)
+            
+            # 3. If rules are uncertain, use ML
+            if rule_result is None:
+                features = get_features(url, dns_val=dns, whois_obj=domain_name)
                 features = fix_features(features)
                 result = model.predict([features])[0]
                 prob = model.predict_proba([features])[0]
+            else:
+                result = rule_result
 
         # ---------------- RESULT LOGIC (NUANCED) ----------------
         st.subheader("🔍 Analysis Result")

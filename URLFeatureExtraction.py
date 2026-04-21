@@ -232,7 +232,10 @@ def domainAge(domain_name):
   if creation_date.tzinfo is not None: creation_date = creation_date.replace(tzinfo=None)
   if expiration_date.tzinfo is not None: expiration_date = expiration_date.replace(tzinfo=None)
 
-  ageofdomain = abs((expiration_date - creation_date).days)
+  try:
+      ageofdomain = abs((expiration_date - creation_date).days)
+  except:
+      return 1 # Fallback to suspicious if calculation fails
   if (ageofdomain/30) < 6:
       age = 1
   else:
@@ -267,7 +270,10 @@ def domainEnd(domain_name):
       expiration_date = expiration_date.replace(tzinfo=None)
       
   today = datetime.now()
-  end = abs((expiration_date - today).days)
+  try:
+      end = abs((expiration_date - today).days)
+  except:
+      return 1 # Fallback to suspicious if calculation fails
   if (end/30) < 6:
       end = 0
   else:
