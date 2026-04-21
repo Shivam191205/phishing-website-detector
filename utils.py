@@ -80,18 +80,9 @@ class HeuristicEngine:
         score = 0
         
         # 0. Technical Whitelist Check
-        # tldextract may move the tech TLD to 'domain' if it doesn't recognize it as a suffix
-        if suffix in self.tech_whitelist or domain in self.tech_whitelist:
-            return {
-                "score": 0,
-                "flags": ["Safe Technical TLD/Domain (%s)" % (suffix if suffix else domain)],
-                "domain_info": {
-                    "subdomain": subdomain,
-                    "domain": domain,
-                    "suffix": suffix,
-                    "full": full_domain
-                }
-            }
+        # For test/example TLDs, we skip the "suspicious TLD" flag but still
+        # run all other checks (brand impersonation, keywords, dashes, etc.)
+        is_tech_tld = (suffix in self.tech_whitelist or domain in self.tech_whitelist)
         
         # 1. Brand Impersonation Check (Improved)
         for brand, domains in self.trusted_brands.items():
@@ -118,8 +109,8 @@ class HeuristicEngine:
             flags.append(f"Subdomain Stuffing ({dots} subdomains)")
             score += 30
         
-        # 3. Suspicious TLD
-        if suffix in self.suspicious_tlds:
+        # 3. Suspicious TLD (skip for whitelisted tech TLDs)
+        if suffix in self.suspicious_tlds and not is_tech_tld:
             flags.append(f"Suspicious TLD (.{suffix})")
             score += 20
             
