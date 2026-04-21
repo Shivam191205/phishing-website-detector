@@ -236,11 +236,16 @@ if st.button("🚀 Analyze Website"):
         # Pre-normalization (Add www. and https://)
         url = normalize_url(url)
         
+        with st.spinner("🔍 Analyzing URL patterns..."):
+            # 1. Run Heuristics FIRST (no network needed)
+            rule_result, h_result = rule_based_check(url)
+
         with st.spinner("🔍 Validating DNS and fetching website information..."):
-            # 1. DNS VALIDATION (Smarter Logic)
+            # 2. DNS VALIDATION (Smarter Logic)
             url_ext = tldextract.extract(url)
             _tech_whitelist = ["example", "test", "localhost", "invalid"]
             is_test_domain = (url_ext.suffix in _tech_whitelist or url_ext.domain in _tech_whitelist)
+            has_suspicious_patterns = (h_result["score"] > 0)
             
             try:
                 netloc = urlparse(url).netloc
@@ -249,24 +254,20 @@ if st.button("🚀 Analyze Website"):
                 # Check for standard DNS failure
                 is_dns_failure = not domain_name or (not getattr(domain_name, 'creation_date', None) and not getattr(domain_name, 'domain_name', None))
                 
-                if is_dns_failure and not is_test_domain:
-                    # For a normal domain (.com, etc), if whois fails, it's likely a typo or non-existent
+                if is_dns_failure and not is_test_domain and not has_suspicious_patterns:
                     st.error("🚫 DNS record doesn't exist. Please check your domain name and try again.")
                     st.stop()
                 
                 dns = 0 if not is_dns_failure else 1
             except Exception:
-                if not is_test_domain:
+                if not is_test_domain and not has_suspicious_patterns:
                     st.error("🚫 DNS record doesn't exist or could not be reached. Check your input.")
                     st.stop()
                 dns = 1
                 domain_name = None
 
         with st.spinner("🛡️ Running security analysis..."):
-            # 2. Check Heuristics
-            rule_result, h_result = rule_based_check(url)
-            
-            # 3. If rules are uncertain, use ML
+            # 3. If rules don't give a definitive result, use ML
             if rule_result is None:
                 features = get_features(url, dns_val=dns, whois_obj=domain_name)
                 features = fix_features(features)
