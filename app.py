@@ -3,6 +3,7 @@ import pickle
 from urllib.parse import urlparse
 import requests
 import whois
+import tldextract
 
 
 from URLFeatureExtraction import *
@@ -238,7 +239,8 @@ if st.button("🚀 Analyze Website"):
         with st.spinner("🔍 Validating DNS and fetching website information..."):
             # 1. DNS VALIDATION (Smarter Logic)
             url_ext = tldextract.extract(url)
-            is_test_domain = (url_ext.suffix in engine.tech_whitelist or url_ext.domain in engine.tech_whitelist)
+            _tech_whitelist = ["example", "test", "localhost", "invalid"]
+            is_test_domain = (url_ext.suffix in _tech_whitelist or url_ext.domain in _tech_whitelist)
             
             try:
                 netloc = urlparse(url).netloc
