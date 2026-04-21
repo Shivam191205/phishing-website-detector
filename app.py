@@ -241,34 +241,33 @@ if st.button("🚀 Analyze Website"):
             rule_result, h_result = rule_based_check(url)
 
         with st.spinner("🔍 Validating DNS and fetching website information..."):
-            # 2. DNS VALIDATION (Smarter Logic)
+            # 2. DNS VALIDATION - if DNS fails, treat as PHISHING
             url_ext = tldextract.extract(url)
             _tech_whitelist = ["example", "test", "localhost", "invalid"]
             is_test_domain = (url_ext.suffix in _tech_whitelist or url_ext.domain in _tech_whitelist)
-            has_suspicious_patterns = (h_result["score"] > 0)
-            
+            dns_failed = False
+
             try:
                 netloc = urlparse(url).netloc
                 domain_name = whois.whois(netloc)
-                
-                # Check for standard DNS failure
                 is_dns_failure = not domain_name or (not getattr(domain_name, 'creation_date', None) and not getattr(domain_name, 'domain_name', None))
-                
-                if is_dns_failure and not is_test_domain and not has_suspicious_patterns:
-                    st.error("🚫 DNS record doesn't exist. Please check your domain name and try again.")
-                    st.stop()
-                
-                dns = 0 if not is_dns_failure else 1
+                dns = 1 if is_dns_failure else 0
+                if is_dns_failure and not is_test_domain:
+                    dns_failed = True
             except Exception:
-                if not is_test_domain and not has_suspicious_patterns:
-                    st.error("🚫 DNS record doesn't exist or could not be reached. Check your input.")
-                    st.stop()
                 dns = 1
                 domain_name = None
+                if not is_test_domain:
+                    dns_failed = True
 
         with st.spinner("🛡️ Running security analysis..."):
             # 3. If rules don't give a definitive result, use ML
-            if rule_result is None:
+            if dns_failed:
+                # DNS doesn't exist = phishing
+                result = 1
+                h_result = rule_based_check(url)[1]
+                rule_result = 1
+            elif rule_result is None:
                 features = get_features(url, dns_val=dns, whois_obj=domain_name)
                 features = fix_features(features)
                 result = model.predict([features])[0]
