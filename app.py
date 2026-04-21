@@ -240,22 +240,39 @@ if st.button("🚀 Analyze Website"):
                 result = model.predict([features])[0]
                 prob = model.predict_proba([features])[0]
 
-        # ---------------- RESULT ----------------
-        st.subheader("🔍 Result")
+        # ---------------- RESULT LOGIC (NUANCED) ----------------
+        st.subheader("🔍 Analysis Result")
 
+        # Determine final status
         if result == 0:
+            status = "safe"
+        elif rule_result is None and h_result["score"] < 50:
+            # If the rules are uncertain and heuristic score is low, but ML says phishing
+            status = "caution"
+        else:
+            status = "phishing"
+
+        if status == "safe":
             st.markdown("""
             <div class='success-box'>
             <h2>✅ Legitimate Website</h2>
             <p>This website is safe and trusted.</p>
             </div>
             """, unsafe_allow_html=True)
-            risk = 20
+            risk = 10 if h_result["score"] == 0 else 25
+        elif status == "caution":
+            st.markdown("""
+            <div style='padding: 25px; border-radius: 15px; background: rgba(255,165,0,0.1); box-shadow: 0 0 30px rgba(255,165,0,0.4);'>
+            <h2 style='color: orange;'>🟠 Caution / Suspicious</h2>
+            <p>This website has some suspicious patterns but is not definitively phishing. Proceed with care.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            risk = 55
         else:
             st.markdown("""
             <div class='error-box'>
             <h2>⚠️ Phishing Website Detected!</h2>
-            <p>This website may steal sensitive data.</p>
+            <p>This website may steal sensitive data. High confidence malicious indicators found.</p>
             </div>
             """, unsafe_allow_html=True)
             risk = 90

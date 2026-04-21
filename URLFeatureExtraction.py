@@ -213,21 +213,29 @@ If age of domain > 12 months, the vlaue of this feature is 1 (phishing) else 0 (
 def domainAge(domain_name):
   creation_date = domain_name.creation_date
   expiration_date = domain_name.expiration_date
-  if (isinstance(creation_date,str) or isinstance(expiration_date,str)):
+  
+  # Take first index if it's a list
+  if isinstance(creation_date, list): creation_date = creation_date[0]
+  if isinstance(expiration_date, list): expiration_date = expiration_date[0]
+
+  if isinstance(creation_date, str) or isinstance(expiration_date, str):
     try:
-      creation_date = datetime.strptime(creation_date,'%Y-%m-%d')
-      expiration_date = datetime.strptime(expiration_date,"%Y-%m-%d")
+      if isinstance(creation_date, str): creation_date = datetime.strptime(creation_date,'%Y-%m-%d')
+      if isinstance(expiration_date, str): expiration_date = datetime.strptime(expiration_date,"%Y-%m-%d")
     except:
       return 1
-  if ((expiration_date is None) or (creation_date is None)):
+
+  if expiration_date is None or creation_date is None:
       return 1
-  elif ((type(expiration_date) is list) or (type(creation_date) is list)):
-      return 1
-  else:
-    ageofdomain = abs((expiration_date - creation_date).days)
-    if ((ageofdomain/30) < 6):
+  
+  # Ensure both are naive or both are aware
+  if creation_date.tzinfo is not None: creation_date = creation_date.replace(tzinfo=None)
+  if expiration_date.tzinfo is not None: expiration_date = expiration_date.replace(tzinfo=None)
+
+  ageofdomain = abs((expiration_date - creation_date).days)
+  if (ageofdomain/30) < 6:
       age = 1
-    else:
+  else:
       age = 0
   return age
 
@@ -241,21 +249,28 @@ If end period of domain > 6 months, the vlaue of this feature is 1 (phishing) el
 # 14.End time of domain: The difference between termination time and current time (Domain_End) 
 def domainEnd(domain_name):
   expiration_date = domain_name.expiration_date
-  if isinstance(expiration_date,str):
+  
+  # Take first index if it's a list
+  if isinstance(expiration_date, list): expiration_date = expiration_date[0]
+
+  if isinstance(expiration_date, str):
     try:
       expiration_date = datetime.strptime(expiration_date,"%Y-%m-%d")
     except:
       return 1
-  if (expiration_date is None):
+  
+  if expiration_date is None:
       return 1
-  elif (type(expiration_date) is list):
-      return 1
-  else:
-    today = datetime.now()
-    end = abs((expiration_date - today).days)
-    if ((end/30) < 6):
+  
+  # Ensure naive for comparison with datetime.now()
+  if expiration_date.tzinfo is not None:
+      expiration_date = expiration_date.replace(tzinfo=None)
+      
+  today = datetime.now()
+  end = abs((expiration_date - today).days)
+  if (end/30) < 6:
       end = 0
-    else:
+  else:
       end = 1
   return end
 

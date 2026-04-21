@@ -50,6 +50,9 @@ class HeuristicEngine:
             "xyz", "top", "win", "club", "loan", "biz", "info", "online", 
             "site", "website", "pw", "cc", "run", "icu"
         ]
+        
+        # Whitelisted technical TLDs (documentation and testing)
+        self.tech_whitelist = ["example", "test", "localhost", "invalid"]
 
     def analyze(self, url):
         ext = tldextract.extract(url)
@@ -60,6 +63,20 @@ class HeuristicEngine:
         
         flags = []
         score = 0
+        
+        # 0. Technical Whitelist Check
+        # tldextract may move the tech TLD to 'domain' if it doesn't recognize it as a suffix
+        if suffix in self.tech_whitelist or domain in self.tech_whitelist:
+            return {
+                "score": 0,
+                "flags": ["Safe Technical TLD/Domain (%s)" % (suffix if suffix else domain)],
+                "domain_info": {
+                    "subdomain": subdomain,
+                    "domain": domain,
+                    "suffix": suffix,
+                    "full": full_domain
+                }
+            }
         
         # 1. Brand Impersonation Check (Improved)
         for brand, domains in self.trusted_brands.items():
