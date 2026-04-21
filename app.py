@@ -236,20 +236,29 @@ if st.button("🚀 Analyze Website"):
         url = normalize_url(url)
         
         with st.spinner("🔍 Validating DNS and fetching website information..."):
-            # 1. DNS VALIDATION (Graceful Error)
+            # 1. DNS VALIDATION (Smarter Logic)
+            url_ext = tldextract.extract(url)
+            is_test_domain = (url_ext.suffix in engine.tech_whitelist or url_ext.domain in engine.tech_whitelist)
+            
             try:
                 netloc = urlparse(url).netloc
                 domain_name = whois.whois(netloc)
                 
-                # If whois returns essentially nothing, it's a DNS failure
-                if not domain_name or (not getattr(domain_name, 'creation_date', None) and not getattr(domain_name, 'domain_name', None)):
+                # Check for standard DNS failure
+                is_dns_failure = not domain_name or (not getattr(domain_name, 'creation_date', None) and not getattr(domain_name, 'domain_name', None))
+                
+                if is_dns_failure and not is_test_domain:
+                    # For a normal domain (.com, etc), if whois fails, it's likely a typo or non-existent
                     st.error("🚫 DNS record doesn't exist. Please check your domain name and try again.")
                     st.stop()
                 
-                dns = 0
+                dns = 0 if not is_dns_failure else 1
             except Exception:
-                st.error("🚫 DNS record doesn't exist or could not be reached. Check your input.")
-                st.stop()
+                if not is_test_domain:
+                    st.error("🚫 DNS record doesn't exist or could not be reached. Check your input.")
+                    st.stop()
+                dns = 1
+                domain_name = None
 
         with st.spinner("🛡️ Running security analysis..."):
             # 2. Check Heuristics
