@@ -43,7 +43,7 @@ class HeuristicEngine:
             "login", "verify", "secure", "account", "update", "banking", 
             "wallet", "crypto", "official", "support", "billing", "signin",
             "validation", "compliance", "confirm"
-        ],
+        ]
         
         # TLDs often used for phishing or low-reputation sites
         self.suspicious_tlds = [
@@ -61,10 +61,14 @@ class HeuristicEngine:
         flags = []
         score = 0
         
-        # 1. Brand Impersonation Check
+        # 1. Brand Impersonation Check (Improved)
         for brand, domains in self.trusted_brands.items():
-            # If brand name is in domain or subdomain but it's not the official domain
-            if (brand in domain or brand in subdomain) and full_domain not in domains:
+            # Check if brand is a distinct part of domain/subdomain (e.g. brand-login or paypal.verify)
+            # This avoids flagging "google-analytics" as easily if it's not a clear attempt to impersonate
+            brand_pattern = rf"(^|[.\-])({brand})([.\-]|$)"
+            is_brand_present = re.search(brand_pattern, f"{subdomain}.{domain}")
+            
+            if is_brand_present and full_domain not in domains:
                 # Special case: allow subdomains of official domains (e.g., accounts.google.com)
                 is_sub_of_official = False
                 for official in domains:
@@ -73,8 +77,8 @@ class HeuristicEngine:
                         break
                 
                 if not is_sub_of_official:
-                    flags.append(f"Brand Impersonation ({brand.capitalize()})")
-                    score += 50
+                    flags.append(f"Potential Brand Impersonation ({brand.capitalize()})")
+                    score += 45 # Slightly reduced from 50
 
         # 2. Subdomain Stuffing
         dots = subdomain.count('.')
@@ -87,11 +91,14 @@ class HeuristicEngine:
             flags.append(f"Suspicious TLD (.{suffix})")
             score += 20
             
-        # 4. Keyword Risk in Subdomain/Domain
-        for kw in self.suspicious_keywords[0]: # Suspicious keywords was a tuple accidentally
+        # 4. Keyword Risk (Capped)
+        kw_score = 0
+        for kw in self.suspicious_keywords:
             if kw in subdomain or kw in domain:
                 flags.append(f"Risk Keyword: '{kw}'")
-                score += 25
+                kw_score += 15 # Reduced from 25
+        
+        score += min(kw_score, 45) # Cap keyword risk at 45
 
         # 5. Excessive Dashes
         dashes = domain.count('-') + subdomain.count('-')
@@ -126,7 +133,8 @@ def rule_based_check(url):
                 return 0, h_result
 
     # 2. High Confidence Malicious (Heuristic)
-    if h_result["score"] >= 80:
+    # Increased threshold to 90 to allow ML model more room for nuanced cases
+    if h_result["score"] >= 90:
         return 1, h_result
     
     # Otherwise, return None to pass to the model

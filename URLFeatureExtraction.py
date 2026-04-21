@@ -167,7 +167,7 @@ Each of these features are explained and the coded below:
 # importing required packages for this section
 import re
 from bs4 import BeautifulSoup
-#import whois
+import whois
 import urllib
 import urllib.request
 from datetime import datetime

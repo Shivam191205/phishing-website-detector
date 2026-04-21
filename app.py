@@ -2,6 +2,7 @@ import streamlit as st
 import pickle
 from urllib.parse import urlparse
 import requests
+import whois
 
 
 from URLFeatureExtraction import *
@@ -145,10 +146,17 @@ def get_features(url):
     features.append(tinyURL(url))
     features.append(prefixSuffix(url))
 
-    features.append(0)
+    # DNS & Domain features
+    dns = 0
+    try:
+        domain_name = whois.whois(urlparse(url).netloc)
+    except:
+        dns = 1
+    
+    features.append(dns)
     features.append(web_traffic(url))
-    features.append(0)
-    features.append(0)
+    features.append(1 if dns == 1 else domainAge(domain_name))
+    features.append(1 if dns == 1 else domainEnd(domain_name))
 
     try:
         response = requests.get(url, timeout=5)
