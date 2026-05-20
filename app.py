@@ -372,36 +372,32 @@ if st.button("🚀 Analyze Website"):
                     st.write(f"🔹 {r}")
 
         # ---------------- WEBSITE INFO & PREVIEW ----------------
-        col1, col2 = st.columns(2)
+        st.subheader("🌐 Website Info")
+        parsed = urlparse(url)
+        st.write(f"**Domain:** {parsed.netloc}")
+        st.write(f"**Path Depth:** {parsed.path.count('/')}")
         
-        with col1:
-            st.subheader("🌐 Website Info")
-            parsed = urlparse(url)
-            st.write(f"**Domain:** {parsed.netloc}")
-            st.write(f"**Path Depth:** {parsed.path.count('/')}")
-            
-            # Display some WHOIS registrar info if retrieved successfully
-            if domain_name:
-                try:
-                    registrar = domain_name.get("registrar", "Unknown")
-                    if isinstance(registrar, list):
-                        registrar = registrar[0]
-                    st.write(f"**Registrar:** {registrar}")
-                except Exception:
-                    pass
+        # Display some WHOIS registrar info if retrieved successfully
+        if domain_name:
+            try:
+                registrar = domain_name.get("registrar", "Unknown")
+                if isinstance(registrar, list):
+                    registrar = registrar[0]
+                st.write(f"**Registrar:** {registrar}")
+            except Exception:
+                pass
 
-        with col2:
-            st.subheader("📸 Sandboxed Visual Preview")
-            with st.spinner("Generating live screenshot preview..."):
-                screenshot_url, target_status = get_screenshot_data(url)
-                if target_status == 429:
-                    st.warning("⚠️ Preview Restricted: This website restricts automated preview generation (HTTP 429). The security check remains valid.")
-                elif target_status and target_status >= 400:
-                    st.warning(f"⚠️ Preview Restricted: This website blocks automated visual tools (HTTP {target_status}).")
-                elif screenshot_url:
-                    st.image(screenshot_url, use_container_width=True, caption="Live Preview")
-                else:
-                    st.info("⚠️ Preview unavailable (offline, blocked, or slow response).")
+        st.subheader("📸 Sandboxed Visual Preview")
+        with st.spinner("Generating live screenshot preview..."):
+            screenshot_url, target_status = get_screenshot_data(url)
+            if target_status == 429:
+                st.warning("⚠️ Preview Restricted: This website restricts automated preview generation (HTTP 429). The security check remains valid.")
+            elif target_status and target_status >= 400:
+                st.warning(f"⚠️ Preview Restricted: This website blocks automated visual tools (HTTP {target_status}).")
+            elif screenshot_url:
+                st.image(screenshot_url, use_container_width=True, caption="Live Preview")
+            else:
+                st.info("⚠️ Preview unavailable (offline, blocked, or slow response).")
 
         # ---------------- FEATURES ----------------
         if rule_result is None:
