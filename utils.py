@@ -148,16 +148,21 @@ def rule_based_check(url):
     norm_url = normalize_url(url)
     h_result = engine.analyze(norm_url)
     
-    # 1. Whitelist (Known Safe)
-    # If the score is 0 and it's a very common domain, trust it
-    if h_result["score"] == 0:
-        # Check if it's an official brand domain
-        for brand, domains in engine.trusted_brands.items():
-            if h_result["domain_info"]["full"] in domains:
-                return 0, h_result
+    # 1. Whitelist (Known Safe Brand Domain)
+    full_domain = h_result["domain_info"]["full"]
+    for brand, domains in engine.trusted_brands.items():
+        # Trust if it matches the brand domain exactly, or is a subdomain of it
+        if full_domain in domains or any(full_domain.endswith("." + d) for d in domains):
+            return 0, h_result
 
-    # 2. High Confidence Malicious (Heuristic)
-    # Increased threshold to 90 to allow ML model more room for nuanced cases
+    # 2. Heuristics Trust (Clean Domain)
+    # If the domain triggers absolutely 0 heuristic flags, it is safe.
+    # This prevents the ML model (which suffers from severe training set length/depth bias)
+    # from incorrectly flagging short/homepage URLs of legitimate sites as phishing.
+    if h_result["score"] == 0:
+        return 0, h_result
+
+    # 3. High Confidence Malicious (Heuristic)
     if h_result["score"] >= 90:
         return 1, h_result
     

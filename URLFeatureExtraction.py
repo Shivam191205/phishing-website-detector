@@ -56,7 +56,7 @@ If the length of URL >= 54 , the value assigned to this feature is 1 (phishing) 
 
 # 4.Finding the length of URL and categorizing (URL_Length)
 def getLength(url):
-  if len(url) < 75:
+  if len(url) < 54:
     length = 0            
   else:
     length = 1            
@@ -307,10 +307,10 @@ def iframe(response):
   if response == "":
       return 1
   else:
-      if re.findall(r"<iframe|<frameBorder", response.text, re.IGNORECASE):
-          return 1
-      else:
+      if re.findall(r"[<iframe>|<frameBorder>]", response.text):
           return 0
+      else:
+          return 1
 
 """### **3.3.2. Status Bar Customization**
 
@@ -338,7 +338,13 @@ If the response is empty or onmouseover is not found then, the value assigned to
 
 # 17.Checks the status of the right click attribute (Right_Click)
 def rightClick(response):
-    return 0   # ignore this feature (too unstable)
+  if response == "":
+    return 1
+  else:
+    if re.findall(r"event.button ?== ?2", response.text):
+      return 0
+    else:
+      return 1
 
 """### **3.3.4. Website Forwarding**
 The fine line that distinguishes phishing websites from legitimate ones is how many times a website has been redirected. In our dataset, we find that legitimate websites have been redirected one time max. On the other hand, phishing websites containing this feature have been redirected at least 4 times.
