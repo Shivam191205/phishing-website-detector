@@ -176,6 +176,20 @@ def get_features(url, dns_val=None, whois_obj=None):
     return features
 
 
+# ---------------- SCREENSHOT UTILITY ----------------
+def get_screenshot_url(url):
+    api_url = f"https://api.microlink.io?url={url}&screenshot=true"
+    try:
+        response = requests.get(api_url, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("status") == "success":
+                return data.get("data", {}).get("screenshot", {}).get("url")
+    except Exception:
+        pass
+    return None
+
+
 # ---------------- EXPLANATION ----------------
 def explain_result(url):
     reasons = []
@@ -315,9 +329,14 @@ if st.button("🚀 Analyze Website"):
             risk = min(0.85 + heuristic_boost, 0.99)
 
         # ---------------- HEURISTIC ANALYSIS ----------------
+        # Calculate risk_pct early so we can use it in the score display
+        risk_pct = int(risk * 100)
+
         if h_result["flags"]:
             st.subheader("🛡️ Heuristic Analysis")
-            st.write(f"**Risk Score:** {h_result['score']}/100")
+            # Show actual risk % when phishing is detected (not the raw low heuristic score)
+            display_score = risk_pct if status == "phishing" else h_result["score"]
+            st.write(f"**Risk Score:** {display_score}/100")
             for flag in h_result["flags"]:
                 st.warning(f"🚩 {flag}")
 
@@ -348,11 +367,33 @@ if st.button("🚀 Analyze Website"):
                 for r in reasons:
                     st.write(f"🔹 {r}")
 
-        # ---------------- WEBSITE INFO ----------------
-        st.subheader("🌐 Website Info")
-        parsed = urlparse(url)
-        st.write(f"Domain: {parsed.netloc}")
-        st.write(f"Path Depth: {parsed.path.count('/')}")
+        # ---------------- WEBSITE INFO & PREVIEW ----------------
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("🌐 Website Info")
+            parsed = urlparse(url)
+            st.write(f"**Domain:** {parsed.netloc}")
+            st.write(f"**Path Depth:** {parsed.path.count('/')}")
+            
+            # Display some WHOIS registrar info if retrieved successfully
+            if domain_name:
+                try:
+                    registrar = domain_name.get("registrar", "Unknown")
+                    if isinstance(registrar, list):
+                        registrar = registrar[0]
+                    st.write(f"**Registrar:** {registrar}")
+                except Exception:
+                    pass
+
+        with col2:
+            st.subheader("📸 Sandboxed Visual Preview")
+            with st.spinner("Generating live screenshot preview..."):
+                screenshot_url = get_screenshot_url(url)
+                if screenshot_url:
+                    st.image(screenshot_url, use_container_width=True, caption="Live Preview")
+                else:
+                    st.info("⚠️ Preview unavailable (offline, blocked, or slow response).")
 
         # ---------------- FEATURES ----------------
         if rule_result is None:

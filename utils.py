@@ -84,24 +84,25 @@ class HeuristicEngine:
         # run all other checks (brand impersonation, keywords, dashes, etc.)
         is_tech_tld = (suffix in self.tech_whitelist or domain in self.tech_whitelist)
         
-        # 1. Brand Impersonation Check (Improved)
+        # 1. Brand Impersonation Check (with typosquat/homograph detection)
+        # Normalize homograph chars: 0->o, 1->l, 3->e, 4->a, 5->s, @->a
+        homograph_map = str.maketrans("01345@", "olesaa")
+        normalized_subdomain = subdomain.translate(homograph_map)
+        normalized_domain = domain.translate(homograph_map)
+
         for brand, domains in self.trusted_brands.items():
-            # Check if brand is a distinct part of domain/subdomain (e.g. brand-login or paypal.verify)
-            # This avoids flagging "google-analytics" as easily if it's not a clear attempt to impersonate
             brand_pattern = rf"(^|[.\-])({brand})([.\-]|$)"
-            is_brand_present = re.search(brand_pattern, f"{subdomain}.{domain}")
+            # Check both original and normalized (homograph) versions
+            is_brand_present = (
+                re.search(brand_pattern, f"{subdomain}.{domain}") or
+                re.search(brand_pattern, f"{normalized_subdomain}.{normalized_domain}")
+            )
             
             if is_brand_present and full_domain not in domains:
-                # Special case: allow subdomains of official domains (e.g., accounts.google.com)
-                is_sub_of_official = False
-                for official in domains:
-                    if full_domain == official:
-                        is_sub_of_official = True
-                        break
-                
+                is_sub_of_official = any(full_domain == official for official in domains)
                 if not is_sub_of_official:
                     flags.append(f"Potential Brand Impersonation ({brand.capitalize()})")
-                    score += 45 # Slightly reduced from 50
+                    score += 45
 
         # 2. Subdomain Stuffing
         dots = subdomain.count('.')
