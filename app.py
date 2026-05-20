@@ -177,17 +177,21 @@ def get_features(url, dns_val=None, whois_obj=None):
 
 
 # ---------------- SCREENSHOT UTILITY ----------------
-def get_screenshot_url(url):
+def get_screenshot_data(url):
     api_url = f"https://api.microlink.io?url={url}&screenshot=true"
     try:
         response = requests.get(api_url, timeout=10)
         if response.status_code == 200:
             data = response.json()
             if data.get("status") == "success":
-                return data.get("data", {}).get("screenshot", {}).get("url")
+                target_status = data.get("statusCode", 200)
+                screenshot_url = data.get("data", {}).get("screenshot", {}).get("url")
+                return screenshot_url, target_status
+        elif response.status_code == 429:
+            return None, 429
     except Exception:
         pass
-    return None
+    return None, None
 
 
 # ---------------- EXPLANATION ----------------
@@ -389,8 +393,12 @@ if st.button("🚀 Analyze Website"):
         with col2:
             st.subheader("📸 Sandboxed Visual Preview")
             with st.spinner("Generating live screenshot preview..."):
-                screenshot_url = get_screenshot_url(url)
-                if screenshot_url:
+                screenshot_url, target_status = get_screenshot_data(url)
+                if target_status == 429:
+                    st.warning("⚠️ Preview Restricted: This website restricts automated preview generation (HTTP 429). The security check remains valid.")
+                elif target_status and target_status >= 400:
+                    st.warning(f"⚠️ Preview Restricted: This website blocks automated visual tools (HTTP {target_status}).")
+                elif screenshot_url:
                     st.image(screenshot_url, use_container_width=True, caption="Live Preview")
                 else:
                     st.info("⚠️ Preview unavailable (offline, blocked, or slow response).")
